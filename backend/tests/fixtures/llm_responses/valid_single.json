@@ -1,0 +1,8 @@
+{
+  "description": "One explicit answer to the current question.",
+  "state": "empty",
+  "user_message": "My name is Jane Smith.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"full_name\", \"value\": \"Jane Smith\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"Jane Smith\"}], \"reply\": \"Thanks, Jane. What is your home address?\", \"asks_about\": \"home_address\"}"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "description": "'My brother James' gives both executor name and relationship.",
+  "state": "before_executor",
+  "user_message": "My brother James.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"executor.name\", \"value\": \"James\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"brother James\"}, {\"path\": \"executor.relationship\", \"value\": \"brother\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"My brother\"}], \"reply\": \"Thank you, I've noted James as your executor. Are there any specific gifts you'd like to leave?\", \"asks_about\": \"specific_gifts\"}"
+  ]
+}

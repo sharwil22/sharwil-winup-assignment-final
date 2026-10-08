@@ -1,0 +1,8 @@
+{
+  "description": "User said no children earlier, now mentions a son; model reports it as new, not a correction.",
+  "state": "no_children",
+  "user_message": "I'd like to leave my car to my son Tom.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"has_children\", \"value\": true, \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"my son Tom\"}, {\"path\": \"children_names\", \"value\": [\"Tom\"], \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"my son Tom\"}, {\"path\": \"specific_gifts\", \"value\": [{\"item\": \"car\", \"recipient\": \"Tom\"}], \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"leave my car to my son Tom\"}], \"reply\": \"Noted, your car goes to Tom.\", \"asks_about\": \"specific_gifts\"}"
+  ]
+}

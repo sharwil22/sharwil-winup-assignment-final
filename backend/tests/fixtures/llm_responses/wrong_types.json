@@ -1,0 +1,8 @@
+{
+  "description": "Boolean field returned as a string: shape is valid JSON, semantics are not.",
+  "state": "before_children",
+  "user_message": "Maybe, it's complicated.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"has_children\", \"value\": \"maybe\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"Maybe\"}], \"reply\": \"No problem. Do you have any children?\", \"asks_about\": \"has_children\"}"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Explicit correction of an earlier answer.",
+  "state": "executor_james",
+  "user_message": "Actually, make my sister Anna the executor instead.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"executor.name\", \"value\": \"Anna\", \"kind\": \"correction\", \"certainty\": \"explicit\", \"evidence\": \"my sister Anna\"}, {\"path\": \"executor.relationship\", \"value\": \"sister\", \"kind\": \"correction\", \"certainty\": \"explicit\", \"evidence\": \"my sister Anna\"}], \"reply\": \"Done, Anna is now your executor. Are there any specific gifts you'd like to leave?\", \"asks_about\": \"specific_gifts\"}"
+  ]
+}

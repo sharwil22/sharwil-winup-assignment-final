@@ -1,0 +1,9 @@
+{
+  "description": "The model returns no text.",
+  "state": "empty",
+  "user_message": "My name is Jane Smith.",
+  "raw_responses": [
+    "",
+    ""
+  ]
+}

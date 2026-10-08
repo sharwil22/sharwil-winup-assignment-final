@@ -1,0 +1,8 @@
+{
+  "description": "Several fields in one message, out of interview order.",
+  "state": "empty",
+  "user_message": "I'm Jane Smith, no kids, and I live at 4 High Street, Leeds LS1 1AA.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"has_children\", \"value\": false, \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"no kids\"}, {\"path\": \"full_name\", \"value\": \"Jane Smith\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"Jane Smith\"}, {\"path\": \"home_address\", \"value\": \"4 High Street, Leeds LS1 1AA\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"4 High Street, Leeds LS1 1AA\"}], \"reply\": \"Thanks, Jane, I've noted your address and that you have no children. Should this document cover all of your assets worldwide?\", \"asks_about\": \"covers_worldwide_assets\"}"
+  ]
+}

@@ -1,0 +1,39 @@
+> **{{ disclaimer }}**
+
+# Personal Wishes Document
+
+_{{ status_line }}_
+
+## 1. Declarant
+
+{{ declarant }}
+
+## 2. Scope of assets
+
+{{ scope }}
+
+## 3. Children
+
+{{ children }}
+
+## 4. Executor
+
+{{ executor }}
+
+## 5. Specific gifts
+
+{% if gifts is string %}
+{{ gifts }}
+{% else %}
+{% for gift in gifts %}
+- {{ gift }}
+{% endfor %}
+{% endif %}
+
+## 6. Additional wishes
+
+{{ additional_wishes }}
+
+---
+
+> **{{ disclaimer }}**

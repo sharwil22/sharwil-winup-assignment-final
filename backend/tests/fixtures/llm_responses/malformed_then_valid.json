@@ -1,0 +1,9 @@
+{
+  "description": "First attempt is not JSON; the repair retry succeeds.",
+  "state": "empty",
+  "user_message": "My name is Jane Smith.",
+  "raw_responses": [
+    "Sure! Here's the JSON: {updates: [full_name=Jane]",
+    "{\"updates\": [{\"path\": \"full_name\", \"value\": \"Jane Smith\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"Jane Smith\"}], \"reply\": \"Thanks, Jane. What is your home address?\", \"asks_about\": \"home_address\"}"
+  ]
+}

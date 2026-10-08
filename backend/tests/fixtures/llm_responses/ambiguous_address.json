@@ -1,0 +1,8 @@
+{
+  "description": "Vague address: must be marked unclear, never captured.",
+  "state": "name_only",
+  "user_message": "Somewhere in London.",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"home_address\", \"value\": \"London\", \"kind\": \"new\", \"certainty\": \"unclear\", \"evidence\": \"Somewhere in London\"}], \"reply\": \"Could you give me your full address, including the street and postcode?\", \"asks_about\": \"home_address\"}"
+  ]
+}

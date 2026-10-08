@@ -1,0 +1,9 @@
+{
+  "description": "Both attempts are malformed: no state change, fallback question.",
+  "state": "empty",
+  "user_message": "My name is Jane Smith.",
+  "raw_responses": [
+    "not json at all",
+    "{\"updates\": \"Jane\", \"reply\": 3}"
+  ]
+}

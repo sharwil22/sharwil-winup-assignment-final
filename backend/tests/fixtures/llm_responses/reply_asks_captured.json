@@ -1,0 +1,8 @@
+{
+  "description": "Valid update, but the reply asks for a field that is already captured.",
+  "state": "name_only",
+  "user_message": "4 High Street, Leeds LS1 1AA",
+  "raw_responses": [
+    "{\"updates\": [{\"path\": \"home_address\", \"value\": \"4 High Street, Leeds LS1 1AA\", \"kind\": \"new\", \"certainty\": \"explicit\", \"evidence\": \"4 High Street, Leeds LS1 1AA\"}], \"reply\": \"Thanks! And what is your full name?\", \"asks_about\": \"full_name\"}"
+  ]
+}
