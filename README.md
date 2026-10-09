@@ -1,177 +1,385 @@
-# sharwil-winup-assignment
+# AI-Powered Personal Wishes Interview Assistant
 
-# Document Intake Assistant
+An interactive, multi-turn AI application that converts a user's conversational responses into a structured Personal Wishes Document draft through evidence-based extraction, typed validation, explicit ambiguity handling, and controlled state updates.
 
-A small web app that interviews a user in chat, keeps a **validated structured record** of their answers, and renders a draft **fictional** Personal Wishes Document from that record. Built for the Wenup engineering technical test.
-
-> Fictional document. Not legal advice.
-
-**▶ 3-minute video walkthrough:** [docs/VIDEO_WALKTHROUGH.md](docs/VIDEO_WALKTHROUGH.md): what it is, the approach, how it was built, and the technical terms.
-
-![Interview in progress: chat on the left, collected information and draft on the right](docs/screenshots/desktop.png)
-
-**Answer provenance:** every captured answer shows the exact words it came from (*"my brother James" · message 5*), and corrections show what they replaced, so nothing in the record is unexplained.
-
-**The core rule: the LLM proposes, the application decides.** The model only suggests field updates in a fixed schema. Deterministic code validates them, applies them to the state, chooses the next question, and renders the document from a template. The model is used for understanding messy language; it is kept away from the facts and the document.
+**Live Demo:** [Open Application](https://sharwil-winup-assignment.onrender.com)  
+**Source Code:** [GitHub Repository](https://github.com/sharwil22/sharwil-winup-assignment-final)
 
 ---
 
-## Quick start (no API key needed)
+## 1. Project Overview
 
-Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/), Node 20+, `make`.
+The application guides a user through a conversational interview, identifies relevant information from their responses, validates proposed updates, and maintains a structured representation of their wishes.
+
+Rather than allowing an LLM to directly modify application state, the system uses a controlled processing pipeline. The model proposes updates; application-side validation and reduction logic determine which changes are accepted.
+
+### Core Principle
+
+> **The model proposes; the application decides.**
+
+This separates probabilistic language-model output from deterministic application logic, making state transitions easier to validate, explain, and test.
+
+### Key Capabilities
+
+- **Multi-turn conversation:** Collects information incrementally instead of requiring a single long form.
+- **Structured extraction:** Converts natural-language responses into typed field updates.
+- **Evidence validation:** Checks that proposed evidence is supported by the latest user message.
+- **Ambiguity handling:** Represents unclear information as a candidate instead of automatically treating it as confirmed.
+- **Conflict and correction handling:** Preserves relevant previous values and supports corrections.
+- **Dependency-aware processing:** Handles relationships between fields, including whether the user has children and their children's names.
+- **Optimistic concurrency:** Uses expected versions to prevent updates based on stale session state.
+- **Document generation:** Produces a Markdown Personal Wishes Document from the current structured state.
+- **Provider abstraction:** Separates LLM integration from the interview and state-management logic.
+
+---
+
+## 2. Application Workflow — Start Here
+
+The following diagram shows the complete high-level lifecycle, from the user's message to the updated application state and generated document.
+
+```mermaid
+flowchart TD
+    A["User opens the application"] --> B["Create or retrieve session"]
+    B --> C["User submits a message"]
+    C --> D["Validate request and session version"]
+    D --> E["Load current state and recent context"]
+    E --> F["LLM Provider extracts proposed updates"]
+    F --> G{"Is the provider output usable?"}
+
+    G -- "No / malformed" --> H["Apply documented fallback or retry behavior"]
+    H --> I["Validate proposed updates"]
+
+    G -- "Yes" --> I
+
+    I --> J["Check types, evidence, dependencies and duplicates"]
+    J --> K["Resolve ambiguity, conflicts and corrections"]
+    K --> L["Apply accepted updates through the reducer"]
+    L --> M["Plan the next conversational focus"]
+    M --> N["Save session with version checking"]
+    N --> O["Build updated session response"]
+    O --> P["Generate Markdown document from structured state"]
+    P --> Q["Return response to the frontend"]
+    Q --> R["Display conversation, fields and document"]
+
+    R --> C
+```
+
+**How to read this flowchart**
+
+1. The user submits a message through the frontend.
+2. The backend validates the request and loads the relevant session context.
+3. The configured provider proposes structured updates.
+4. Application-side validation checks whether the proposals are acceptable.
+5. The reducer applies the accepted updates to the structured state.
+6. The session is saved using version-aware concurrency control.
+7. The backend prepares the updated session and Markdown document.
+8. The frontend displays the resulting conversation and current information.
+
+Malformed or unusable provider output is handled through the application's documented retry and fallback behavior. This does not mean every invalid proposal is accepted.
+
+---
+
+## 3. System Architecture
+
+The application separates the user interface, HTTP API, conversational orchestration, model integration, validation, state management, and document rendering.
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend Layer"]
+        UI["React + TypeScript UI"]
+        Client["API Client"]
+        UI <--> Client
+    end
+
+    subgraph Backend["Backend Layer — FastAPI"]
+        Routes["API Routes and DTOs"]
+        Service["Session Service"]
+        Interview["Interview Orchestration"]
+        Planner["Conversation Planner"]
+        Provider["LLMProvider Interface"]
+        Validation["Update Validation"]
+        Reducer["Pure State Reducer"]
+        Repository["Session Repository"]
+        Markdown["Jinja2 Markdown Renderer"]
+
+        Routes --> Service
+        Service --> Interview
+        Interview --> Provider
+        Interview --> Validation
+        Validation --> Reducer
+        Interview --> Planner
+        Service --> Repository
+        Service --> Markdown
+    end
+
+    subgraph Providers["Model Providers"]
+        RuleBased["RuleBasedProvider"]
+        Anthropic["Anthropic Provider"]
+        Scripted["Scripted Provider"]
+    end
+
+    subgraph State["Application State"]
+        Session["Session"]
+        Wishes["WishesState"]
+        Fields["Typed Fields and Provenance"]
+        Session --> Wishes
+        Wishes --> Fields
+    end
+
+    Client <--> Routes
+    Provider --> RuleBased
+    Provider --> Anthropic
+    Provider --> Scripted
+    Repository <--> Session
+    Reducer --> Wishes
+    Markdown --> Client
+```
+
+### Component Responsibilities
+
+| Component | Responsibility |
+|---|---|
+| React + TypeScript | Presents the conversation and application state to the user. |
+| FastAPI routes | Exposes HTTP endpoints and validates incoming requests. |
+| Session service | Coordinates session operations and application workflows. |
+| Interview orchestration | Coordinates extraction, validation, state updates, and the next conversational focus. |
+| `LLMProvider` | Defines the interface for structured extraction providers. |
+| Update validation | Checks proposed values, evidence, field types, dependencies, and duplicate paths. |
+| State reducer | Applies accepted updates to the structured state. |
+| Session repository | Stores and retrieves sessions; the default implementation is in-memory. |
+| Conversation planner | Selects the next conversational focus based on the current state. |
+| Jinja2 renderer | Generates the Markdown document from the structured wishes state. |
+
+The diagram represents logical responsibilities; the detailed implementation and call sequence are documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 4. State Management and Validation
+
+The application does not treat every extracted value as immediately confirmed. Each field carries structured information that supports controlled updates and traceability.
+
+### Field Lifecycle
+
+```mermaid
+flowchart TD
+    A["User message"] --> B["Provider proposes a typed update"]
+    B --> C{"Field path and value valid?"}
+    C -- "No" --> X["Reject invalid proposal"]
+    C -- "Yes" --> D{"Evidence supported by latest message?"}
+    D -- "No" --> X
+    D -- "Yes" --> E{"Ambiguous or conflicting?"}
+    E -- "Yes" --> F["Retain candidate or handle conflict"]
+    E -- "No" --> G["Apply accepted update"]
+    F --> H["Update structured field metadata"]
+    G --> H
+    H --> I["Update state and session versions as applicable"]
+    I --> J["Return current state to the user"]
+```
+
+### Validation Responsibilities
+
+- **Type checking:** Values must match their expected field types.
+- **Evidence checking:** Evidence-backed proposals must be supported by the latest user message after the application's normalization rules.
+- **Field-path checking:** Updates must target supported fields.
+- **Duplicate detection:** Duplicate update paths within a proposal are rejected.
+- **Dependency handling:** Related fields are processed in a defined order.
+- **Ambiguity handling:** Unclear values can remain candidates instead of being promoted to confirmed values.
+- **Conflict and correction handling:** The reducer applies the application's defined rules for corrections, conflicts, and previous values.
+- **Concurrency control:** Writes use expected session versions to detect stale updates.
+
+### Structured Field Information
+
+A field can carry its value, status, candidate value, note, source turn, source, evidence, and previous value, as applicable.
+
+The domain model distinguishes the version of the overall session from the version of the wishes state. A session version can advance on a successful save even when the wishes state itself has not changed.
+
+For exact statuses, supported field paths, and reducer behavior, see [`docs/VALIDATION_AND_STATE.md`](docs/VALIDATION_AND_STATE.md).
+
+---
+
+## 5. Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Backend | Python 3.12+, FastAPI, Uvicorn |
+| Data validation | Pydantic v2, `pydantic-settings` |
+| LLM integration | Anthropic SDK, structured-output provider abstraction |
+| State and domain logic | Typed domain models, validation functions, pure reducer |
+| Document generation | Jinja2, Markdown |
+| Frontend | React 19, TypeScript, Vite |
+| Markdown rendering | `react-markdown` |
+| Backend quality tools | pytest, FastAPI TestClient, Ruff, mypy |
+| Frontend quality tools | Vitest, Testing Library, jsdom, oxlint, TypeScript compiler |
+| Development and deployment | uv, npm, Make, Docker, Render |
+
+The project includes a rule-based provider for mock operation, alongside the provider abstraction used for model-backed operation.
+
+---
+
+## 6. API Reference
+
+The backend exposes the following endpoints.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Health check |
+| `POST` | `/api/sessions` | Create a session |
+| `GET` | `/api/sessions/{session_id}` | Retrieve a session |
+| `POST` | `/api/sessions/{session_id}/messages` | Submit a conversational message |
+| `PATCH` | `/api/sessions/{session_id}/fields` | Edit a supported field |
+| `GET` | `/api/sessions/{session_id}/document` | Retrieve the generated Markdown document |
+
+### Interactive API Documentation
+
+When the backend is running locally:
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- OpenAPI schema: `http://localhost:8000/openapi.json`
+
+### API Design Considerations
+
+- Request and response structures use typed schemas.
+- Message requests enforce the configured content-length constraint.
+- Version-aware writes use `expected_version`.
+- API errors use structured responses for cases such as missing sessions, version conflicts, invalid requests, unavailable providers, and internal errors.
+- The default in-memory repository does not provide durable persistence.
+
+See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for request formats, response structures, field paths, and error details.
+
+---
+
+## 7. Running the Application Locally
+
+### Prerequisites
+
+- Python 3.12 or a compatible project-supported Python version
+- Node.js and npm
+- uv
+- Git
+
+### Installation
+
+Clone the repository:
 
 ```bash
-make install   # backend + frontend dependencies; creates backend/.env from .env.example
-make dev       # backend http://localhost:8000, frontend http://localhost:5173 (Ctrl+C stops both)
+git clone https://github.com/sharwil22/sharwil-winup-assignment-final.git
+cd sharwil-winup-assignment-final
 ```
 
-Open **http://localhost:5173**. Screenshots: [interview](docs/screenshots/desktop.png), [clarification, dark mode](docs/screenshots/clarification-dark.png), [draft document](docs/screenshots/document.png), [answer provenance](docs/screenshots/provenance.png).
+Install project dependencies using the repository's Make target:
 
- Chat on the left; on the right, the collected information (status per field, inline **Edit**) and the live draft (**Download .md**).
-
-With no key the app uses a **rule-based demo model** (a "Demo model" badge shows in the header). It handles the happy path and a few phrasings ("My name is…", "my brother James", "no kids", "actually…"), but it is a stand-in, not language understanding.
-
-Try: `I'm Jane Smith, no kids, 4 High Street, Leeds LS1 1AA` → `Yes` → `My brother James` → `Actually, change my executor to my sister Anna` → `I'd like to leave my watch to Anna` → `None`.
-
-## Using Claude
-
-Edit `backend/.env` and restart:
-
+```bash
+make install
 ```
+
+Start the development environment:
+
+```bash
+make dev
+```
+
+Use the frontend and backend addresses reported by the development command. The documented local defaults are:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+
+### LLM Configuration
+
+The application supports mock operation through the rule-based provider. For Anthropic-backed operation, configure the provider and API key using the project's supported environment settings.
+
+```dotenv
 LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your-key
-LLM_MODEL=claude-opus-5-5   # optional; any current Claude model
-LLM_EFFORT=low              # optional; low | medium | high
+ANTHROPIC_API_KEY=your_api_key_here
 ```
 
-`.env` is gitignored; only `.env.example` is committed. If `anthropic` is selected without a key, the app still starts: the UI shows a banner and chat requests return a clear `llm_not_configured` error.
-
-`make eval` runs eight scripted conversations (`--repeat N` runs each N times, since model output varies) against the configured model and prints a pass/fail table (a few cents per run). With `claude-opus-5-5` at low effort all eight pass, at about 3–5 s per turn.
-
-## Commands
-
-| Command | What it does |
-| --- | --- |
-| `make install` | Install dependencies, create `backend/.env` |
-| `make dev` | Run backend and frontend together |
-| `make test` | Backend (pytest, 155 tests) and frontend (Vitest, 15 tests); no network, no key |
-| `make lint` | ruff, ruff format, mypy (strict), oxlint, tsc |
-| `make eval` | Scripted conversations against the real model |
-
-API docs (OpenAPI) are at http://localhost:8000/docs while the backend runs.
-
-## Deploying to Render
-
-The repository includes a `render.yaml` Blueprint and `Dockerfile` for a single-service deployment. The container builds the frontend and serves it from FastAPI, keeping browser and API requests on the same origin.
-
-1. Push this repository to GitHub.
-2. In the [Render Dashboard](https://dashboard.render.com), choose **New > Blueprint** and select the repository.
-3. Enter your Anthropic key when Render prompts for `ANTHROPIC_API_KEY`. Keep it in Render's environment settings; never add it to GitHub.
-4. Create the Blueprint and wait for the service to finish deploying. Open its `onrender.com` URL.
-
-The Blueprint uses Render's free web-service plan. Free instances can sleep when idle, and interview sessions are in memory, so they reset on restart or redeploy. For persistent sessions, add a database-backed repository before using the app for real users. This app creates fictional drafts only; it is not legal advice.
+Use the repository's environment configuration for any additional settings. Do not commit API keys or other secrets.
 
 ---
 
-## How it works
+## 8. Testing and Quality Checks
 
-```
-Browser (React)  ──JSON, versioned──▶  FastAPI routes ──▶ SessionService
-                                                              │
-               ┌──────────── one user turn (services/interview.py) ────────────┐
-               │ Planner ─▶ LLM provider ─▶ Validator ─▶ Reducer ─▶ Document   │
-               │ next field  Claude / mock   types,       pure state  Jinja2    │
-               │ to ask      proposes        evidence,    update      template, │
-               │             updates         consistency              no LLM    │
-               └───────────────────────────────────────────────────────────────┘
-                                                              │
-                                    Session store (WishesState = source of truth)
-```
+The repository includes backend and frontend testing and code-quality tooling.
 
-1. **State.** Nine fields, each with a status: `missing`, `needs_clarification`, `captured`, `not_applicable`. A field's `value` only ever holds a confirmed answer; unclear or conflicting answers wait in a separate `candidate` slot.
-2. **Model call.** One request per turn using **structured outputs** (a JSON schema generated from the Pydantic contract). The model returns proposed `updates` (each with `kind` new/correction, `certainty` explicit/unclear and the user's own words as `evidence`), a `reply`, and `asks_about` (the field its question targets).
-3. **Validation.** Types per field; **evidence must appear in the user's message** (the main guard against invented facts); consistency (no children's names after "no children").
-4. **Reducer** (pure function). Unclear answers are never captured. A new answer that disagrees with a captured one is a **conflict**: the old value stays and the user is asked which is right. An explicit **correction** overwrites. "No children" makes the names field not applicable.
-5. **Reply.** The server's planner decides *what* to ask (it never re-asks a captured field); the model only decides *how*. Its wording is used only if `asks_about` matches the planner and nothing was rejected or conflicting.
-6. **Document.** Rendered by a template from confirmed values only, with visible placeholders for gaps and the fictional/not-legal-advice label at the top and bottom.
+| Area | Tools |
+|---|---|
+| Backend tests | pytest, FastAPI TestClient |
+| Backend linting | Ruff |
+| Backend static typing | mypy |
+| Frontend tests | Vitest, Testing Library, jsdom |
+| Frontend linting | oxlint |
+| Frontend type checking | TypeScript compiler |
 
-### Failure handling
+For exact test scope, commands, and documented results, see [`docs/TESTING.md`](docs/TESTING.md).
 
-| Situation | What happens |
-| --- | --- |
-| Malformed model output | Retry once with the parse error as a hint; if it fails again, nothing changes and the planner's question is asked (HTTP 200 with `warnings`) |
-| Model refuses | Server-side fallback model (`fallbacks: "default"`); if still refused, nothing changes and the question is repeated |
-| Timeout, rate limit, network, 5xx | HTTP 503 `llm_unavailable` (retryable); **nothing is saved**, so Retry is clean |
-| Missing or invalid key | HTTP 503 `llm_not_configured` with the fix; health endpoint and UI banner report it |
-| Two tabs or a double submit | Optimistic concurrency: a stale `expected_version` gets 409 before the model is called; the UI reloads |
-| Anything unexpected | HTTP 500 with a generic message; details only in the server log |
+**Evaluation note:** The presence of test tooling does not itself establish that every test has passed. Consult the testing documentation for the results and execution details it records.
 
-### Key decisions and trade-offs
+---
 
-| Decision | Trade-off |
-| --- | --- |
-| Model proposes, code decides | More code than "let the model fill a form", but every fact is validated and every rule is testable |
-| Evidence must quote the user | Occasionally rejects a correct value the model paraphrased; the user is simply asked again |
-| Server picks the next question | Conversation is a little more scripted; "never re-ask a captured field" is guaranteed rather than hoped for |
-| Template document, no LLM | Less natural prose; the draft can never contain anything that isn't in the confirmed state |
-| Structured outputs, not forced tool use | Current Claude models reject forced `tool_choice`; structured outputs constrain the JSON. Output is still validated, since truncation or refusal can break it |
-| In-memory sessions | Lost on restart (the UI starts a fresh one); storage is behind an interface for a real database |
-| Deterministic regex mock as default | Runs without a key; clearly not language understanding |
+## 9. Deployment
 
-## Swapping the model provider
+The repository includes Docker and Render deployment configuration.
 
-The application talks to one interface:
+**Live application:** [https://sharwil-winup-assignment.onrender.com](https://sharwil-winup-assignment.onrender.com)
 
-```python
-class LLMProvider(Protocol):
-    def extract(self, ctx: TurnContext) -> TurnExtraction: ...
-```
+Deployment considerations:
 
-`AnthropicProvider` builds the prompt, calls the API with the JSON schema, and maps SDK errors onto the app's own (`LLMUnavailable`, `LLMNotConfigured`, `LLMMalformedOutput`, `LLMRefused`). To use another provider, write one class with `extract()` and add a branch in `backend/app/llm/factory.py`. The contract, prompt, validation, reducer, API and UI don't change. The two offline providers (`ScriptedProvider` for tests, `RuleBasedProvider` for the demo) already prove the seam.
+- The application requires the appropriate environment configuration for its selected provider.
+- The default in-memory repository stores sessions in process memory and does not provide durable persistence.
+- Deployment configuration alone does not establish production-grade persistence, authentication, or security controls.
 
-## Testing
+The live demo is provided for evaluator access. Its availability and behavior should be verified directly when evaluating the application.
 
-- **Domain** (state, validation, reducer, planner): pure-function tests, including "never asks the same field twice" over a full interview.
-- **Document**: snapshot files (`backend/tests/snapshots/*.md`) plus checks that unclear or conflicting values never appear and that user text can't inject Markdown.
-- **Model handling**: 12 recorded model responses in `backend/tests/fixtures/llm_responses/` (valid, multi-field, ambiguous, correction, contradiction, invented fact, reply asking a captured field, wrong types, malformed then valid, malformed twice, empty), each run through the real pipeline. The Claude adapter is tested against a fake SDK client (request shape, refusal, truncation, every error class).
-- **API**: full conversation, every error code, stale versions, model failures leave the session unchanged.
-- **UI**: component tests against a fake backend (send, retry, 409 reload, edit errors, resume). The app was also driven in headless Chrome, which found six issues unit tests missed (see the build journal).
-- **Live eval** (`make eval`): six scripted conversations against the real model, checking the final state.
+---
 
-## Project layout
+## 10. Limitations and Security Considerations
 
-```
-backend/app/
-  domain/      models.py, updates.py, validation.py, reducer.py, planner.py   (no HTTP, no LLM)
-  documents/   generator.py, templates/wishes.md.j2
-  llm/         contracts.py, interface.py, prompts.py, anthropic_provider.py, mock_provider.py, factory.py
-  services/    interview.py (one turn), sessions.py (use cases), session_store.py
-  api/         routes.py, schemas.py, errors.py
-backend/tests/ unit, fixture, API and snapshot tests
-backend/scripts/eval.py   live evaluation
-frontend/src/  api/, hooks/useSession.ts, components/, format.ts
-docs/          PRD, TRD, plan, step-by-step guide, build journal, screenshots
-```
+The current architecture has important boundaries:
 
-## Known limitations
+- No authentication or authorization is provided by the documented API.
+- The default session repository is in-memory; session data is not durably persisted by that repository.
+- The application produces a Personal Wishes Document draft; it does not establish that the document is legally valid.
+- If the Anthropic provider is used, relevant user-provided information may be sent to the external model provider.
+- Production use would require an explicit review of privacy, access controls, data retention, transport and storage security, and operational safeguards.
 
-- Sessions are in memory: a backend restart forgets them.
-- No authentication; anyone with a session id can read that session.
-- The demo provider is regex-based. For example, it takes "Just call me Jane" as the full name, which `make eval` flags.
-- One interview language (English) and one fictional jurisdiction.
-- No streaming of model replies; each turn waits for the full, validated response.
+These limitations should be considered when interpreting the application as a prototype rather than a production legal-document service.
 
-What I would do for production is in [PRODUCTION_NOTES.md](PRODUCTION_NOTES.md).
+---
 
-## Documents
+## 11. Documentation Index
 
-| Document | Contents |
-| --- | --- |
-| [docs/VIDEO_WALKTHROUGH.md](docs/VIDEO_WALKTHROUGH.md) | Narrated 3:20 video, chapters, glossary of technical terms, transcript |
-| [docs/VOICEOVER_SCRIPT.md](docs/VOICEOVER_SCRIPT.md) | The video's narration, timed, with what is on screen for each line |
-| [docs/BRIEF_COMPLIANCE.md](docs/BRIEF_COMPLIANCE.md) | Every requirement in the brief, how it is met, and the evidence |
-| [AI_LOG.md](AI_LOG.md) | How AI tools were used: key prompts, iterations, output questioned or corrected |
-| [PRODUCTION_NOTES.md](PRODUCTION_NOTES.md) | What I would change for production |
-| [docs/BUILD_JOURNAL.md](docs/BUILD_JOURNAL.md) | What was built in each phase, how and why, including what changed along the way |
-| [docs/PRD.md](docs/PRD.md) · [docs/TRD.md](docs/TRD.md) | Product and technical requirements |
-| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md) | Plan and build guide |
+The following documents provide deeper implementation details.
+
+| Document | What the evaluator will find |
+|---|---|
+| [`PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) | Project overview, features, setup, configuration, and repository structure |
+| [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Component architecture, request lifecycle, and implementation responsibilities |
+| [`VALIDATION_AND_STATE.md`](docs/VALIDATION_AND_STATE.md) | Domain model, field metadata, validation rules, reducer behavior, and state versions |
+| [`API_REFERENCE.md`](docs/API_REFERENCE.md) | Endpoints, schemas, requests, responses, and error behavior |
+| [`TESTING.md`](docs/TESTING.md) | Testing approach, quality tools, commands, and documented results |
+
+---
+
+## 12. Evaluator Walkthrough
+
+For the clearest review, follow this sequence:
+
+1. **Open the live application** and inspect the initial interface.
+2. **Start a session** and submit a message containing information relevant to the interview.
+3. **Continue the conversation** to observe multi-turn information collection.
+4. **Inspect the structured fields** and how the application represents the collected information.
+5. **Test ambiguity or correction handling** by providing an unclear answer or correcting a previously supplied value.
+6. **Inspect the generated Markdown document** and compare it with the current structured state.
+7. **Open Swagger UI** to inspect the API endpoints and request schemas.
+8. **Read the architecture and validation documentation** to understand how proposed updates are checked and applied.
+9. **Review the testing documentation** for the recorded test scope and results.
+
+This walkthrough is intended to make the user-facing behavior, backend design, validation strategy, and evaluation evidence straightforward to inspect.
+
+---
+
+## Project Summary
+
+This project demonstrates a controlled conversational application in which an LLM assists with information extraction while application code remains responsible for validation, state transitions, concurrency checks, and document generation.
+
+The architecture separates model-generated proposals from accepted state changes, uses typed domain structures, and makes the resulting workflow inspectable through the API and accompanying technical documentation.
